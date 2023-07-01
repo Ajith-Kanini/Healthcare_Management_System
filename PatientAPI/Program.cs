@@ -73,6 +73,16 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
+builder.Services.AddCors(op =>
+{
+    op.AddPolicy("MyCorsPolicy", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyHeader()
+               .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -83,8 +93,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.UseCors("MyCorsPolicy");
 app.UseAuthorization();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.MapControllers();
 

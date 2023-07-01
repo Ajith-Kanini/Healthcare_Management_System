@@ -9,6 +9,8 @@ using DoctorAPI.Repository;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Swashbuckle.AspNetCore.Annotations;
+using Prometheus.DotNetRuntime;
 
 namespace DoctorAPI.Controllers
 {
@@ -24,19 +26,26 @@ namespace DoctorAPI.Controllers
         }
 
         // GET: api/DoctorDetails
-        [Authorize(Roles = "Doctor,Admin")]
+       // [Authorize(Roles = "Doctor,Admin")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<DoctorDTO>>> GetDoctorDetails()
+        public async Task<ActionResult<IEnumerable<DoctorDetails>>> GetDoctorDetails()
         {
-            var doctorDetails = await _repository.GetAllDoctorDetailsAsync();
-            var doctorDTOs = doctorDetails.Select(d => new DoctorDTO
-            {
-                DoctoName=d.DoctoName,
-                Email=d.Email,
-                DoctorPassword=d.DoctorPassword,
-            }).ToList();
+            var courses = await _repository.GetAllDoctorDetailsAsync();
 
-            return doctorDTOs;
+            if (courses == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(courses);
+            /* var doctorDTOs = doctorDetails.Select(d => new DoctorDTO
+             {
+                 DoctoName=d.DoctoName,
+                 Email=d.Email,
+                 DoctorPassword=d.DoctorPassword,
+             }).ToList();*/
+
+
         }
 
         // GET: api/DoctorDetails/5
@@ -78,13 +87,11 @@ namespace DoctorAPI.Controllers
         }
 
         // PUT: api/DoctorDetails/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutDoctorDetails(int id, DoctorDTO doctorDTO)
+        [HttpPut("updateStatus/{id}")]
+ 
+        public async Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dtor)
         {
-  
-            
-
-            return NoContent();
+                return await _repository.PutDoctorDetails(id, dtor);
         }
 
         // DELETE: api/DoctorDetails/5
@@ -100,6 +107,13 @@ namespace DoctorAPI.Controllers
             await _repository.DeleteDoctorDetailsAsync(id);
 
             return NoContent();
+        }
+        [HttpPost("Register")]
+        public async Task<ActionResult<DoctorDetails>> PostCourse([FromForm] DoctorDetails patient, IFormFile imageFile)
+        {
+            var createdCourse = await _repository.RegisterDoctorAsync(patient, imageFile);
+
+            return CreatedAtAction("RegisterCourse", new { id = createdCourse.DoctorId }, createdCourse);
         }
 
         private string Encrypt(string password)

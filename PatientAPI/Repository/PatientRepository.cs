@@ -4,14 +4,18 @@ using PatientAPI.Repository;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 
 public class PatientRepository : IPatientRepository
 {
     private readonly PatientDbContext _context;
+    private readonly IWebHostEnvironment _webHostEnvironment;
 
-    public PatientRepository(PatientDbContext context)
+    public PatientRepository(PatientDbContext context, IWebHostEnvironment webHostEnvironment)
     {
         _context = context;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     public async Task<IEnumerable<PatientDTO>> GetPatients()
@@ -24,6 +28,12 @@ public class PatientRepository : IPatientRepository
                 PatientPassword = patient.PatientPassword
             })
             .ToListAsync();
+
+        return patients;
+    }
+    public async Task<IEnumerable<PatientDetails>> GetAllPatients()
+    {
+        var patients = await _context.patientDetails.ToListAsync();
 
         return patients;
     }
@@ -85,6 +95,37 @@ public class PatientRepository : IPatientRepository
         await _context.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<PatientDetails> RegisterPatientAsync([FromForm] PatientDetails patient, IFormFile imageFile)
+    {
+        if (imageFile == null || imageFile.Length == 0)
+        {
+            throw new ArgumentException("Invalid file");
+        }
+
+        var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+        var filePath = Path.Combine(uploadsFolder, fileName);
+        try
+        {
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await imageFile.CopyToAsync(stream);
+            }
+
+            patient.PatientPhoto = fileName;
+
+            _context.patientDetails.Add(patient);
+            _context.SaveChanges();
+
+            return patient;
+        }
+        catch (Exception ex)
+        {
+            // Rethrow the exception with additional information
+            throw new Exception("Error occurred while posting the room.", ex);
+        }
     }
     private string Encrypt(string password)
     {

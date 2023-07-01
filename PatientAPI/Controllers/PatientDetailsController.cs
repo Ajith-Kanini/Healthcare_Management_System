@@ -29,6 +29,12 @@ namespace PatientAPI.Controllers
             var patients = await _patientRepository.GetPatients();
             return Ok(patients);
         }
+        [HttpGet("All")]
+        public async Task<ActionResult<IEnumerable<PatientDetails>>> GetAllpatientDetails()
+        {
+            var patients = await _patientRepository.GetAllPatients();
+            return Ok(patients);
+        }
 
         // GET: api/PatientDetails/5
         [HttpGet("{id}")]
@@ -50,6 +56,13 @@ namespace PatientAPI.Controllers
                 return NotFound();
 
             return NoContent();
+        }
+        [HttpPost("Register")]
+        public async Task<ActionResult<PatientDetails>> PostCourse([FromForm] PatientDetails patient, IFormFile imageFile)
+        {
+            var createdCourse = await _patientRepository.RegisterPatientAsync(patient, imageFile);
+
+            return CreatedAtAction("RegisterCourse", new { id = createdCourse.PatientId }, createdCourse);
         }
 
         // POST: api/PatientDetails
