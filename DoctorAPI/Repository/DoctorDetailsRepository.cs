@@ -28,6 +28,11 @@ namespace DoctorAPI.Repository
             return await _context.doctorDetails.FindAsync(id);
         }
 
+        public async Task<DoctorDetails> GetFullDoctorDetailsByIdAsync(int id)
+        {
+            return await _context.doctorDetails.FindAsync(id);
+        }
+
         public async Task CreateDoctorDetailsAsync(DoctorDetails doctorDetails)
         {
             _context.doctorDetails.Add(doctorDetails);
@@ -89,6 +94,58 @@ namespace DoctorAPI.Repository
 
             await _context.SaveChangesAsync();
             return doctor;
+        }
+
+        public async Task<DoctorDetails> PutDoctorProfile(int id, ProfileUpdateDTO dto, IFormFile imageFile)
+        {
+            var doctor = await _context.doctorDetails.FindAsync(id);
+
+            if (doctor == null)
+            {
+                throw new ArgumentException("Doctor not found");
+            }
+
+            if (imageFile != null && imageFile.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                try
+                {
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(stream);
+                    }
+                    if (!string.IsNullOrEmpty(doctor.DoctorImage))
+                    {
+                        var oldFilePath = Path.Combine(uploadsFolder, doctor.DoctorImage);
+                        File.Delete(oldFilePath);
+                    }
+
+                    doctor.DoctorImage = fileName;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error occurred while updating the doctor.", ex);
+                }
+            }
+            doctor.Availability = dto.Availability;
+           doctor.Address = dto.Address;
+            doctor.State = dto.State;
+            doctor.ExperienceYears= dto.ExperienceYears;
+            doctor.Specialization= dto.Specialization;
+            doctor.Phone= dto.Phone;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return doctor;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while saving the updated doctor details.", ex);
+            }
         }
     }
 }

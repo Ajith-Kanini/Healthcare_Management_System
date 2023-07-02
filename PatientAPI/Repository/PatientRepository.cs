@@ -38,17 +38,9 @@ public class PatientRepository : IPatientRepository
         return patients;
     }
 
-    public async Task<PatientDTO> GetPatient(int id)
+    public async Task<PatientDetails> GetPatient(int id)
     {
-        var patient = await _context.patientDetails
-            .Where(p => p.PatientId == id)
-            .Select(patient => new PatientDTO
-            {
-                FirstName = patient.FirstName,
-                Email = patient.Email,
-                PatientPassword = patient.PatientPassword
-            })
-            .FirstOrDefaultAsync();
+        var patient = await _context.patientDetails.FirstOrDefaultAsync();
 
         return patient;
     }

@@ -14,8 +14,9 @@ namespace DoctorAPI.Models
         public string? State { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
+        public float? Rating { get; set; }
         public  bool? RequestStatus { get; set; }
-        public string? Availability { get; set; }
+        public bool? Availability { get; set; }
         public string? DoctorPassword { get; set; }
     }
 }

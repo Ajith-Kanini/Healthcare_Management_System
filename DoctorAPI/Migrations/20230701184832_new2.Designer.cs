@@ -4,6 +4,7 @@ using DoctorAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DoctorAPI.Migrations
 {
     [DbContext(typeof(DoctorDbContext))]
-    partial class DoctorDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230701184832_new2")]
+    partial class new2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -55,8 +58,8 @@ namespace DoctorAPI.Migrations
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<float?>("Rating")
-                        .HasColumnType("real");
+                    b.Property<int?>("Rating")
+                        .HasColumnType("int");
 
                     b.Property<bool?>("RequestStatus")
                         .HasColumnType("bit");

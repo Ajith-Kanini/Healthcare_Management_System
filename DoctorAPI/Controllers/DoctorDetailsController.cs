@@ -11,6 +11,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Swashbuckle.AspNetCore.Annotations;
 using Prometheus.DotNetRuntime;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 
 namespace DoctorAPI.Controllers
 {
@@ -19,10 +21,13 @@ namespace DoctorAPI.Controllers
     public class DoctorDetailsController : ControllerBase
     {
         private readonly IDoctorDetailsRepository _repository;
-
-        public DoctorDetailsController(IDoctorDetailsRepository repository)
+        private readonly DoctorDbContext _context;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        public DoctorDetailsController(DoctorDbContext context,IDoctorDetailsRepository repository, IWebHostEnvironment webHostEnvironment)
         {
             _repository = repository;
+            _context = context;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         // GET: api/DoctorDetails
@@ -38,13 +43,6 @@ namespace DoctorAPI.Controllers
             }
 
             return Ok(courses);
-            /* var doctorDTOs = doctorDetails.Select(d => new DoctorDTO
-             {
-                 DoctoName=d.DoctoName,
-                 Email=d.Email,
-                 DoctorPassword=d.DoctorPassword,
-             }).ToList();*/
-
 
         }
 
@@ -68,8 +66,15 @@ namespace DoctorAPI.Controllers
             return doctorDTO;
         }
 
+        [HttpGet("FullDetails/{id}")]
+        public async Task<ActionResult<DoctorDetails>> GetFullDoctorDetailsByIdAsync(int id)
+        {
+            var doctorDetails = await _repository.GetDoctorDetailsByIdAsync(id);
+            
+            return doctorDetails;
+        }
         // POST: api/DoctorDetails
-        [Authorize(Roles = "Admin")]
+       // [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> PostDoctorDetails(DoctorDTO doctorDTO)
         {
@@ -78,7 +83,6 @@ namespace DoctorAPI.Controllers
                 DoctoName = doctorDTO.DoctoName,
                 Email = doctorDTO.Email,
                 DoctorPassword = Encrypt(doctorDTO.DoctorPassword)
-                // Map other properties as needed
             };
 
             await _repository.CreateDoctorDetailsAsync(doctorDetails);
@@ -115,6 +119,68 @@ namespace DoctorAPI.Controllers
 
             return CreatedAtAction("RegisterCourse", new { id = createdCourse.DoctorId }, createdCourse);
         }
+        [HttpPut("UpdatedProfiles/{id}")]
+        public async Task<IActionResult> PutDoctorProfile(int id, ProfileUpdateDTO dto, IFormFile imageFile)
+        {
+            var updatedDoctor = await _repository.PutDoctorProfile(id, dto, imageFile);
+            return Ok(updatedDoctor);
+        }
+
+        public async Task<DoctorDetails> PutDoctorProfiles(int id, ProfileUpdateDTO dto, IFormFile imageFile)
+        {
+            var doctor = await _context.doctorDetails.FindAsync(id);
+
+            if (doctor == null)
+            {
+                throw new ArgumentException("Doctor not found");
+            }
+
+            doctor.Availability = dto.Availability;
+            doctor.Address = dto.Address;
+            doctor.State = dto.State;
+            doctor.ExperienceYears = dto.ExperienceYears;
+            doctor.Specialization = dto.Specialization;
+            doctor.Phone = dto.Phone;
+
+            if (imageFile != null && imageFile.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                try
+                {
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(stream);
+                    }
+
+                    // Delete the old image file
+                   /* if (!string.IsNullOrEmpty(doctor.DoctorImage))
+                    {
+                        var oldFilePath = Path.Combine(uploadsFolder, doctor.DoctorImage);
+                        File.Delete(oldFilePath);
+                    }
+*/
+                    doctor.DoctorImage = fileName;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error occurred while updating the doctor's profile.", ex);
+                }
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return doctor;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while saving the updated doctor profile.", ex);
+            }
+        }
+
 
         private string Encrypt(string password)
         {

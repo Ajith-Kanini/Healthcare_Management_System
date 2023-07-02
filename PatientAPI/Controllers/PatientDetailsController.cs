@@ -38,7 +38,7 @@ namespace PatientAPI.Controllers
 
         // GET: api/PatientDetails/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<PatientDTO>> GetPatientDetails(int id)
+        public async Task<ActionResult<PatientDetails>> GetPatientDetails(int id)
         {
             var patient = await _patientRepository.GetPatient(id);
             if (patient == null)
