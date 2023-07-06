@@ -13,5 +13,6 @@ namespace PatientAPI.Repository
         Task<PatientDetails> RegisterPatientAsync([FromForm] PatientDetails patient, IFormFile imageFile);
         Task<bool> UpdatePatient(int id, PatientDTO patientDto);
         Task<bool> DeletePatient(int id);
+        Task<PatientDetails> PutPatientProfile(int id, [FromForm] PatientProfileDTO dto, IFormFile imageFile);
     }
 }

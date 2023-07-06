@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol.Core.Types;
 using PatientAPI.Models;
 using PatientAPI.Models.DTO;
 using PatientAPI.Repository;
@@ -22,21 +25,21 @@ namespace PatientAPI.Controllers
             _patientRepository = patientRepository;
         }
 
-        // GET: api/PatientDetails
         [HttpGet]
+       //[Authorize(Roles = "Admin,Patient")]
         public async Task<ActionResult<IEnumerable<PatientDTO>>> GetpatientDetails()
         {
             var patients = await _patientRepository.GetPatients();
             return Ok(patients);
         }
+        //[Authorize(Roles = "Admin,Patient")]
         [HttpGet("All")]
         public async Task<ActionResult<IEnumerable<PatientDetails>>> GetAllpatientDetails()
         {
             var patients = await _patientRepository.GetAllPatients();
             return Ok(patients);
         }
-
-        // GET: api/PatientDetails/5
+        [Authorize(Roles = "Admin,Patient")]
         [HttpGet("{id}")]
         public async Task<ActionResult<PatientDetails>> GetPatientDetails(int id)
         {
@@ -47,7 +50,7 @@ namespace PatientAPI.Controllers
             return Ok(patient);
         }
 
-        // PUT: api/PatientDetails/5
+        [Authorize(Roles = "User")]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPatientDetails(int id, PatientDTO patientDto)
         {
@@ -65,15 +68,14 @@ namespace PatientAPI.Controllers
             return CreatedAtAction("RegisterCourse", new { id = createdCourse.PatientId }, createdCourse);
         }
 
-        // POST: api/PatientDetails
+     
         [HttpPost]
         public async Task<ActionResult<PatientDTO>> PostPatientDetails(PatientDTO patientDto)
         {
             var id = await _patientRepository.CreatePatient(patientDto);
             return CreatedAtAction(nameof(GetPatientDetails), new { id }, patientDto);
         }
-
-        // DELETE: api/PatientDetails/5
+        [Authorize(Roles = "User")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePatientDetails(int id)
         {
@@ -82,6 +84,22 @@ namespace PatientAPI.Controllers
                 return NotFound();
 
             return NoContent();
+        }
+        [Authorize(Roles = "User")]
+        [HttpPut("Updateprofile/{id}")]
+        public async Task<ActionResult<PatientDetails>> PutPatientProfile(int id, [FromForm] PatientProfileDTO dto, IFormFile imageFile)
+        {
+            try
+            {
+                var updatedDoc = await _patientRepository.PutPatientProfile(id, dto, imageFile);
+                return (updatedDoc);
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return BadRequest(ModelState);
+            }
+
         }
     }
 

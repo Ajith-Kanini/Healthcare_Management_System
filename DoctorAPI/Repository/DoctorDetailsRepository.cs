@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Humanizer;
 using DoctorAPI.Models.DTO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Numerics;
 
 namespace DoctorAPI.Repository
 {
@@ -44,7 +47,14 @@ namespace DoctorAPI.Repository
             _context.Entry(doctorDetails).State = EntityState.Modified;
             await _context.SaveChangesAsync();
         }
+        public async Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dto)
+        {
+            var doctor = await _context.doctorDetails.FindAsync(id);
+            doctor.RequestStatus = dto.RequestStatus;
 
+            await _context.SaveChangesAsync();
+            return doctor;
+        }
         public async Task DeleteDoctorDetailsAsync(int id)
         {
             var doctorDetails = await _context.doctorDetails.FindAsync(id);
@@ -73,7 +83,7 @@ namespace DoctorAPI.Repository
                 }
 
                 doctor.DoctorImage = fileName;
-
+                doctor.DoctorPassword = Encrypt(doctor.DoctorPassword);
                 _context.doctorDetails.Add(doctor);
                 _context.SaveChanges();
 
@@ -81,70 +91,91 @@ namespace DoctorAPI.Repository
             }
             catch (Exception ex)
             {
-                // Rethrow the exception with additional information
+    
                 throw new Exception("Error occurred while posting the room.", ex);
             }
 
         }
 
-        public async Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dto)
+        public async Task<DoctorDetails> PutDoctorProfile(int id, [FromForm] ProfileUpdateDTO dto, IFormFile imageFile)
         {
-            var doctor = await _context.doctorDetails.FindAsync(id);
-            doctor.RequestStatus = dto.RequestStatus;
+            var existingDoctor = await _context.doctorDetails.FindAsync(id);
 
-            await _context.SaveChangesAsync();
-            return doctor;
-        }
-
-        public async Task<DoctorDetails> PutDoctorProfile(int id, ProfileUpdateDTO dto, IFormFile imageFile)
-        {
-            var doctor = await _context.doctorDetails.FindAsync(id);
-
-            if (doctor == null)
-            {
-                throw new ArgumentException("Doctor not found");
-            }
-
-            if (imageFile != null && imageFile.Length > 0)
-            {
-                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                try
+                if (existingDoctor == null)
                 {
+                    throw new ArgumentException("Doctor not found");
+                }
+
+                if (imageFile != null && imageFile.Length > 0)
+                {
+                    var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+
+                    if (!string.IsNullOrEmpty(existingDoctor.DoctorImage))
+                    {
+                        var existingFilePath = Path.Combine(uploadsFolder, existingDoctor.DoctorImage);
+                        if (File.Exists(existingFilePath))
+                        {
+                            File.Delete(existingFilePath);
+                        }
+                    }
+
+                    var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+
                     using (var stream = new FileStream(filePath, FileMode.Create))
                     {
                         await imageFile.CopyToAsync(stream);
                     }
-                    if (!string.IsNullOrEmpty(doctor.DoctorImage))
-                    {
-                        var oldFilePath = Path.Combine(uploadsFolder, doctor.DoctorImage);
-                        File.Delete(oldFilePath);
-                    }
 
-                    doctor.DoctorImage = fileName;
+                    dto.DoctorImage = fileName;
                 }
-                catch (Exception ex)
+                else
                 {
-                    throw new Exception("Error occurred while updating the doctor.", ex);
+                    dto.DoctorImage = existingDoctor.DoctorImage;
                 }
-            }
-            doctor.Availability = dto.Availability;
-           doctor.Address = dto.Address;
-            doctor.State = dto.State;
-            doctor.ExperienceYears= dto.ExperienceYears;
-            doctor.Specialization= dto.Specialization;
-            doctor.Phone= dto.Phone;
 
-            try
-            {
+                existingDoctor.Specialization = dto.Specialization;
+                existingDoctor.ExperienceYears = dto.ExperienceYears;
+                existingDoctor.Phone = dto.Phone;
+                existingDoctor.Availability = dto.Availability;
+                existingDoctor.State = dto.State;
+                existingDoctor.Address = dto.Address;
                 await _context.SaveChangesAsync();
-                return doctor;
-            }
-            catch (Exception ex)
+
+                return existingDoctor;
+            
+        }
+           private string Encrypt(string password)
+        {
+            // Example key and IV generation using hashing
+            string passphrase = "your-passphrase";
+
+            using (SHA256 sha256 = SHA256.Create())
             {
-                throw new Exception("Error occurred while saving the updated doctor details.", ex);
+                byte[] key = sha256.ComputeHash(Encoding.UTF8.GetBytes(passphrase));
+                byte[] iv = sha256.ComputeHash(Encoding.UTF8.GetBytes(passphrase)).Take(16).ToArray();
+
+                using (Aes aes = Aes.Create())
+                {
+                    aes.Key = key;
+                    aes.IV = iv;
+
+                    ICryptoTransform encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+                        using (CryptoStream cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write))
+                        {
+                            using (StreamWriter writer = new StreamWriter(cryptoStream))
+                            {
+                                writer.Write(password);
+                            }
+                        }
+
+                        byte[] encryptedData = memoryStream.ToArray();
+                        return Convert.ToBase64String(encryptedData);
+                    }
+                }
             }
         }
     }

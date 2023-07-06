@@ -13,6 +13,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Prometheus.DotNetRuntime;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using System.Numerics;
 
 namespace DoctorAPI.Controllers
 {
@@ -21,17 +22,13 @@ namespace DoctorAPI.Controllers
     public class DoctorDetailsController : ControllerBase
     {
         private readonly IDoctorDetailsRepository _repository;
-        private readonly DoctorDbContext _context;
-        private readonly IWebHostEnvironment _webHostEnvironment;
-        public DoctorDetailsController(DoctorDbContext context,IDoctorDetailsRepository repository, IWebHostEnvironment webHostEnvironment)
+        public DoctorDetailsController(IDoctorDetailsRepository repository)
         {
             _repository = repository;
-            _context = context;
-            _webHostEnvironment = webHostEnvironment;
         }
 
-        // GET: api/DoctorDetails
-       // [Authorize(Roles = "Doctor,Admin")]
+
+        // [Authorize(Roles = "Doctor,Admin,User")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DoctorDetails>>> GetDoctorDetails()
         {
@@ -46,8 +43,9 @@ namespace DoctorAPI.Controllers
 
         }
 
-        // GET: api/DoctorDetails/5
+        // [Authorize(Roles = "Admin,Doctor,User")]
         [HttpGet("{id}")]
+
         public async Task<ActionResult<DoctorDTO>> GetDoctorDetails(int id)
         {
             var doctorDetails = await _repository.GetDoctorDetailsByIdAsync(id);
@@ -58,7 +56,7 @@ namespace DoctorAPI.Controllers
 
             var doctorDTO = new DoctorDTO
             {
-                DoctoName =doctorDetails.DoctoName,
+                DoctoName = doctorDetails.DoctoName,
                 Email = doctorDetails.Email,
                 DoctorPassword = doctorDetails.DoctorPassword,
             };
@@ -66,15 +64,15 @@ namespace DoctorAPI.Controllers
             return doctorDTO;
         }
 
+        // [Authorize(Roles = "Admin,Doctor,User")]
         [HttpGet("FullDetails/{id}")]
         public async Task<ActionResult<DoctorDetails>> GetFullDoctorDetailsByIdAsync(int id)
         {
             var doctorDetails = await _repository.GetDoctorDetailsByIdAsync(id);
-            
+
             return doctorDetails;
         }
-        // POST: api/DoctorDetails
-       // [Authorize(Roles = "Admin")]
+
         [HttpPost]
         public async Task<IActionResult> PostDoctorDetails(DoctorDTO doctorDTO)
         {
@@ -90,15 +88,8 @@ namespace DoctorAPI.Controllers
             return CreatedAtAction("GetDoctorDetails", new { id = doctorDetails.DoctorId }, doctorDTO);
         }
 
-        // PUT: api/DoctorDetails/5
-        [HttpPut("updateStatus/{id}")]
- 
-        public async Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dtor)
-        {
-                return await _repository.PutDoctorDetails(id, dtor);
-        }
 
-        // DELETE: api/DoctorDetails/5
+        [Authorize(Roles = "Doctor")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDoctorDetails(int id)
         {
@@ -112,79 +103,38 @@ namespace DoctorAPI.Controllers
 
             return NoContent();
         }
+        [HttpPut("updateStatus/{id}")]
+
+        public async Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dtor)
+        {
+            return await _repository.PutDoctorDetails(id, dtor);
+        }
         [HttpPost("Register")]
         public async Task<ActionResult<DoctorDetails>> PostCourse([FromForm] DoctorDetails patient, IFormFile imageFile)
         {
+
             var createdCourse = await _repository.RegisterDoctorAsync(patient, imageFile);
 
             return CreatedAtAction("RegisterCourse", new { id = createdCourse.DoctorId }, createdCourse);
         }
-        [HttpPut("UpdatedProfiles/{id}")]
-        public async Task<IActionResult> PutDoctorProfile(int id, ProfileUpdateDTO dto, IFormFile imageFile)
+        // [Authorize(Roles = "Doctor")]
+        [HttpPut("Updateprofile/{id}")]
+        public async Task<ActionResult<DoctorDetails>> PutDoctorProfile(int id, [FromForm] ProfileUpdateDTO dto, IFormFile imageFile)
         {
-            var updatedDoctor = await _repository.PutDoctorProfile(id, dto, imageFile);
-            return Ok(updatedDoctor);
-        }
-
-        public async Task<DoctorDetails> PutDoctorProfiles(int id, ProfileUpdateDTO dto, IFormFile imageFile)
-        {
-            var doctor = await _context.doctorDetails.FindAsync(id);
-
-            if (doctor == null)
-            {
-                throw new ArgumentException("Doctor not found");
-            }
-
-            doctor.Availability = dto.Availability;
-            doctor.Address = dto.Address;
-            doctor.State = dto.State;
-            doctor.ExperienceYears = dto.ExperienceYears;
-            doctor.Specialization = dto.Specialization;
-            doctor.Phone = dto.Phone;
-
-            if (imageFile != null && imageFile.Length > 0)
-            {
-                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                try
-                {
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await imageFile.CopyToAsync(stream);
-                    }
-
-                    // Delete the old image file
-                   /* if (!string.IsNullOrEmpty(doctor.DoctorImage))
-                    {
-                        var oldFilePath = Path.Combine(uploadsFolder, doctor.DoctorImage);
-                        File.Delete(oldFilePath);
-                    }
-*/
-                    doctor.DoctorImage = fileName;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Error occurred while updating the doctor's profile.", ex);
-                }
-            }
-
             try
             {
-                await _context.SaveChangesAsync();
-                return doctor;
+                var updatedDoc = await _repository.PutDoctorProfile(id, dto, imageFile);
+                return (updatedDoc);
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
-                throw new Exception("Error occurred while saving the updated doctor profile.", ex);
+                ModelState.AddModelError("", ex.Message);
+                return BadRequest(ModelState);
             }
+
         }
-
-
         private string Encrypt(string password)
         {
-            // Example key and IV generation using hashing
             string passphrase = "your-passphrase";
 
             using (SHA256 sha256 = SHA256.Create())

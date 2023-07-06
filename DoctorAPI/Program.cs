@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using PatientAPI.Repository;
+using PatientAPI.Models;
 using NuGet.Protocol.Core.Types;
 using System.Text;
 
@@ -55,9 +57,12 @@ builder.Services.AddCors(op =>
 
 // Db Connection
 builder.Services.AddDbContext<DoctorDbContext>(op => op.UseSqlServer(builder.Configuration.GetConnectionString("OneToManyConnection")));
+builder.Services.AddDbContext<PatientDbContext>(op => op.UseSqlServer(builder.Configuration.GetConnectionString("OneToManyConnection")));
 
 // Dependency Injection
 builder.Services.AddScoped<IDoctorDetailsRepository, DoctorDetailsRepository>();
+builder.Services.AddScoped<IPatientRepository, PatientRepository>();
+builder.Services.AddScoped<IAppoinmentBookingRepository, AppoinmentBookingRepository>();
 
 // Adding Authentication
 builder.Services.AddAuthentication(options =>

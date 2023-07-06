@@ -9,7 +9,7 @@ namespace PatientAPI.Models
         public string FirstName { get; set; } = string.Empty;
         public string? LastName { get; set; }
         public string? PatientPhoto { get; set; }
-        public int? Age { get; set; }
+        public int? Age { get; set; } = 0;
         public string? Gender { get; set; }
         public string? Address { get; set; }
         public string? State { get; set; }

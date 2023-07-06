@@ -1,6 +1,8 @@
 ﻿using AdminAPI.Models.DTO;
 using DoctorAPI.Models;
 using DoctorAPI.Models.DTO;
+using PatientAPI.Models;
+using PatientAPI.Models.DTO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,21 +20,27 @@ namespace DoctorAPI.Controllers
     {
         public IConfiguration _configuration;
         private readonly DoctorDbContext _context;
+        private readonly PatientDbContext _patient;
         private const string DoctorRole = "Doctor";
-        private const string AdminRole = "Admin";
+        /*private const string AdminRole = "Admin";
+        private const string UserRole = "User";*/
 
-        public DoctorAuthenticationController(IConfiguration config, DoctorDbContext context)
+        public DoctorAuthenticationController(IConfiguration config, DoctorDbContext context,PatientDbContext patient)
         {
             _configuration = config;
             _context = context;
+            _patient = patient;
         }
+
+       
+
 
         [HttpPost("Doctor")]
         public async Task<IActionResult> Post(DoctorDTO _userData)
         {
             if (_userData != null && _userData.Email != null && _userData.DoctorPassword != null)
             {
-                var user = await GetAdmin(_userData.Email, Encrypt(_userData.DoctorPassword));
+                var user = await GetDoctor(_userData.Email, Encrypt(_userData.DoctorPassword));
 
                 if (user != null)
                 {
@@ -70,59 +78,11 @@ namespace DoctorAPI.Controllers
             }
 
         }
-        private async Task<DoctorDetails> GetAdmin(string email, string password)
+        private async Task<DoctorDetails> GetDoctor(string email, string password)
         {
             return await _context.doctorDetails.FirstOrDefaultAsync(u => u.Email == email && u.DoctorPassword == password);
         }
 
-
-        [HttpPost("Admin")]
-        public async Task<IActionResult> Post(AdminDTO _userData)
-        {
-            try
-            {
-                if (_userData != null && !string.IsNullOrEmpty(_userData.AdminEmailId) && !string.IsNullOrEmpty(_userData.AdminPassword))
-                {
-                    if (_userData.AdminEmailId == "admin@gmail.com" && _userData.AdminPassword == "Admin@123")
-                    {
-                        // Create claims details based on the user information
-                        var claims = new[] {
-                            new Claim(JwtRegisteredClaimNames.Sub, _configuration["Jwt:Subject"]),
-                            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                            new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString()),
-                            new Claim("AdminEmailId", _userData.AdminEmailId),
-                            new Claim("AdminPassword", _userData.AdminPassword),
-                            new Claim(ClaimTypes.Role, AdminRole)
-                        };
-
-                        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-                        var signIn = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-                        var token = new JwtSecurityToken(
-                            _configuration["Jwt:Issuer"],
-                            _configuration["Jwt:Audience"],
-                            claims,
-                            expires: DateTime.UtcNow.AddMinutes(10),
-                            signingCredentials: signIn);
-
-                        return Ok(new JwtSecurityTokenHandler().WriteToken(token));
-                    }
-                    else
-                    {
-                        return BadRequest("Invalid credentials");
-                    }
-                }
-                else
-                {
-                    return BadRequest("Invalid data");
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log the exception or handle it accordingly
-                Console.WriteLine($"Exception: {ex}");
-                return StatusCode(StatusCodes.Status500InternalServerError);
-            }
-        }
 
 
 

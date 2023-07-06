@@ -25,7 +25,6 @@ public class PatientRepository : IPatientRepository
             {
                 FirstName = patient.FirstName,
                 Email = patient.Email,
-                PatientPassword = patient.PatientPassword
             })
             .ToListAsync();
 
@@ -118,6 +117,54 @@ public class PatientRepository : IPatientRepository
             // Rethrow the exception with additional information
             throw new Exception("Error occurred while posting the room.", ex);
         }
+    }
+    public async Task<PatientDetails> PutPatientProfile(int id, [FromForm] PatientProfileDTO dto, IFormFile imageFile)
+    {
+        var existingDoctor = await _context.patientDetails.FindAsync(id);
+
+        if (existingDoctor == null)
+        {
+            throw new ArgumentException("Doctor not found");
+        }
+
+        if (imageFile != null && imageFile.Length > 0)
+        {
+            var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
+
+            if (!string.IsNullOrEmpty(existingDoctor.PatientPhoto))
+            {
+                var existingFilePath = Path.Combine(uploadsFolder, existingDoctor.PatientPhoto);
+                if (File.Exists(existingFilePath))
+                {
+                    File.Delete(existingFilePath);
+                }
+            }
+
+            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await imageFile.CopyToAsync(stream);
+            }
+
+            dto.PatientPhoto = fileName;
+        }
+        else
+        {
+            dto.PatientPhoto = existingDoctor.PatientPhoto;
+        }
+
+        existingDoctor.LastName = dto.LastName;
+        existingDoctor.Age = dto.Age;
+        existingDoctor.Phone = dto.Phone;
+        existingDoctor.Gender = dto.Gender;
+        existingDoctor.State = dto.State;
+        existingDoctor.Address = dto.Address;
+        await _context.SaveChangesAsync();
+
+        return existingDoctor;
+
     }
     private string Encrypt(string password)
     {

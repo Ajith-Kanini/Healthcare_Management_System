@@ -14,6 +14,6 @@ namespace DoctorAPI.Repository
         Task UpdateDoctorDetailsAsync(DoctorDetails doctorDetails);
         Task DeleteDoctorDetailsAsync(int id);
         Task<DoctorDetails> PutDoctorDetails(int id, UpdatestatusDTO dto);
-        Task<DoctorDetails> PutDoctorProfile(int id, ProfileUpdateDTO dto, IFormFile imageFile);
+        Task<DoctorDetails> PutDoctorProfile(int id, [FromForm] ProfileUpdateDTO dto, IFormFile imageFile);
     }
 }
